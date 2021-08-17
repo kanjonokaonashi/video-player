@@ -1,4 +1,4 @@
-import {GET_VIDEOS} from "../../store/actionsConstants";
+import {GET_VIDEOS} from "./actionsConstants";
 
 export const getVideos = () => {
     return {

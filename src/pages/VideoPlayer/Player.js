@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 
 export const Player = (props) => {
     const {
@@ -8,11 +8,10 @@ export const Player = (props) => {
 
     const [currentTime, setCurrentTime] = useState(0);
 
-    const [isPlaying, setIsPlaying] = useState(false);
 
 
     const firstMedia = useMemo(() => {
-        return mediaObjects.find(obj => obj.start === 0)
+        return mediaObjects.find(obj => obj.start === 0);
     }, [mediaObjects]);
 
     const [currentVideo, setCurrentVideo] = useState(mediaElements[firstMedia.id]);
@@ -43,33 +42,36 @@ export const Player = (props) => {
         // canvas.onclick = togglePlay;
         const videoContainer = videoContainerRef.current;
         videoContainer.addEventListener('fullscreenchange', updateFullscreenButton);
-        videoContainer.onmouseenter = showControls;
-        videoContainer.onmouseleave = hideControls;
+        // videoContainer.onmouseenter = showControls;
+        // videoContainer.onmouseleave = hideControls;
     }, []);
 
 
     useEffect(() => {
         if(currentTime >= totalDuration) {
-            console.log('currentTime >= totalDuration');
             setCurrentVideo(mediaElements[firstMedia.id]);
             setCurrentVideoObj(firstMedia)
-        } else if(currentTime >= currentVideoObj.end /*|| currentTime < currentVideoObj.start*/) {
-            console.log('currentTime', currentTime)
-            const newMedia = mediaObjects.find(obj => (obj.start <= currentTime) && (obj.end >= currentTime));
+            setCurrentTime(0); // TODO instead of this start first video if play button is clicked
+        } else if(currentTime >= currentVideoObj.end || currentTime < currentVideoObj.start) {
+            // console.log('currentTime >= currentVideoObj.end || currentTime < currentVideoObj.start, currentTime', currentTime)
+            const newMedia = mediaObjects.find(obj => (obj.start <= currentTime) && (obj.end > currentTime));
+            console.log("the new media ");
+            console.dir(newMedia)
             let video = mediaElements[newMedia.id];
             setCurrentVideo(video);
-            setCurrentVideoObj(newMedia)
+            setCurrentVideoObj(newMedia);
         }
     }, [currentTime]);
 
     useEffect(() => {
         console.dir(currentVideo);
+        currentVideo.currentTime = currentTime - currentVideoObj.start;
+        // console.log('currentVideo.currentTime = ', currentTime - currentVideoObj.start )
         currentVideo.onplay = updatePlayButton;
-        currentVideo.onplaying = () => updateCanvas();
+        currentVideo.onplaying =  updateCanvas;
         currentVideo.onpause = updatePlayButton;
         currentVideo.addEventListener('timeupdate', updateCurrentTime)
         currentVideo.onvolumechange = updateVolumeIcon;
-        currentVideo.currentTime = currentTime - currentVideoObj.start;
         if (currentVideo.readyState >= 2) {
             autoStart()
         } else {
@@ -77,8 +79,9 @@ export const Player = (props) => {
         }
 
         return (() => {
-            console.log("removing")
+            // console.log("removing")
             currentVideo.removeEventListener('play', updatePlayButton);
+            currentVideo.removeEventListener('playing', updateCanvas);
             currentVideo.removeEventListener('pause', updatePlayButton);
             currentVideo.removeEventListener('timeupdate', updatePlayButton);
             currentVideo.removeEventListener('volumechange', updatePlayButton);
@@ -142,6 +145,9 @@ export const Player = (props) => {
 
     function updateCurrentTime() {
         const newTime = currentVideo.currentTime + currentVideoObj.start;
+        console.log("currentVideo.currentTime -> ", currentVideo.currentTime);
+        console.log("currentVideoObj.start -> ", currentVideoObj.start);
+        console.log("newTime -> ", newTime)
         setCurrentTime(newTime);
     }
 
@@ -162,16 +168,26 @@ export const Player = (props) => {
         // const seek = seekRef.current;
         // const progressBar = progressBarRef.current;
 
+
         const skipTo = event.target.dataset.seek
             ? event.target.dataset.seek
             : event.target.value;
+
+
+        if(skipTo >= currentVideoObj.start && skipTo < currentVideoObj.end) {
+            currentVideo.currentTime = skipTo - currentVideoObj.start;
+        } else {
+
+            currentVideo.pause();
+            // console.log("currentVideo.paused -> ", currentVideo.paused)
+        }
 
         console.log('skipTo is -> ', skipTo)
         setCurrentTime(skipTo);
     }
 
     function toggleMute() {
-        console.log("video muted ? ", currentVideo.muted)
+        // console.log("video muted ? ", currentVideo.muted)
         currentVideo.muted = !currentVideo.muted;
 
         // const volume = volumeRef.current;
@@ -201,9 +217,9 @@ export const Player = (props) => {
     }
 
     function updateVolumeIcon() {
-        const volumeMute = volumeMuteRef.current;
-        const volumeLow = volumeLowRef.current;
-        const volumeHigh = volumeHighRef.current;
+        // const volumeMute = volumeMuteRef.current;
+        // const volumeLow = volumeLowRef.current;
+        // const volumeHigh = volumeHighRef.current;
         // const volumeButton = volumeButtonRef.current;
         // const volumeIcons = volumeButtonRef.current.firstChild.childNodes;
 
@@ -225,13 +241,13 @@ export const Player = (props) => {
         // }
     }
 
-    function toggleFullScreen(e) {
+    function toggleFullScreen() {
         const videoContainer = videoContainerRef.current;
 
         if (document.fullscreenElement) {
-            document.exitFullscreen();
+            document.exitFullscreen().then(r => r);
         } else {
-            videoContainer.requestFullscreen();
+            videoContainer.requestFullscreen().then(r => r);
         }
     }
 
@@ -266,16 +282,12 @@ export const Player = (props) => {
         videoControls.classList.remove('hide');
     }
 
-    const updateCanvas = useCallback(() => {
+    function updateCanvas() {
 
-        if(currentTime >= totalDuration) {
+        if (currentVideo.paused) {
+            console.log("currentVideo.paused? ", currentVideo.paused)
             return;
         }
-
-        // if (!currentVideo) {
-        //     return;
-        // }
-
 
             let context = canvasRef.current.getContext('2d');
             context.drawImage(
@@ -287,19 +299,19 @@ export const Player = (props) => {
             );
 
         requestAnimationFrame(updateCanvas);
-    }, [currentVideo]);
+    }
 
     return (
         <div>
             <div className="container">
                 <div ref={videoContainerRef} className="video-container" id="video-container">
                     <div className="canvas-container">
-                        <canvas ref={canvasRef} className="canvas" id="canvas"></canvas>
+                        <canvas ref={canvasRef} className="canvas" id="canvas"/>
                     </div>
                     <div onMouseLeave={hideControls} onMouseEnter={showControls} ref={videoControlsRef} className="video-controls" id="video-controls">
                         <div className="video-progress">
-                            {console.log('progress', currentVideo.currentTime + currentVideoObj.start)}
-                            <progress id="progress-bar" value={currentTime} min="0" max={Math.round(totalDuration)}></progress>
+                            {/*{console.log('progress', currentVideo.currentTime + currentVideoObj.start)}*/}
+                            <progress id="progress-bar" value={currentTime} min="0" max={Math.round(totalDuration)}/>
                             <input onInput={skipAhead} /*onMouseMove={updateSeekTooltip}*/ className="seek" id="seek" value={currentTime} min="0" max={Math.round(totalDuration)} type="range" step="0.2"/>
                             {/*<div ref={seekTooltipRef} className="seek-tooltip" id="seek-tooltip">00:00</div>*/}
                         </div>
@@ -308,17 +320,17 @@ export const Player = (props) => {
                             <div className="left-controls">
                                 <button ref={playButtonRef} onClick={togglePlay} data-title="Play" id="play">
                                     <svg className="playback-icons" ref={playbackIconsRef}>
-                                        <use href="#play-icon"></use>
-                                        <use className="hidden" href="#pause"></use>
+                                        <use href="#play-icon"/>
+                                        <use className="hidden" href="#pause"/>
                                     </svg>
                                 </button>
 
                                 <div className="volume-controls">
                                     <button  onClick={toggleMute} data-title="Mute" className="volume-button" id="volume-button" key="volumeButton">
                                         <svg>
-                                            <use ref={volumeMuteRef} className={currentVideo.muted ? "" : "hidden"} href="#volume-mute"></use>
-                                            <use ref={volumeLowRef} className="hidden" href="#volume-low"></use>
-                                            <use ref={volumeHighRef} href="#volume-high"></use>
+                                            <use ref={volumeMuteRef} className={currentVideo.muted ? "" : "hidden"} href="#volume-mute"/>
+                                            <use ref={volumeLowRef} className="hidden" href="#volume-low"/>
+                                            <use ref={volumeHighRef} href="#volume-high"/>
                                         </svg>
                                     </button>
 
@@ -336,8 +348,8 @@ export const Player = (props) => {
                             <div className="right-controls">
                                 <button onClick={toggleFullScreen} data-title={isFullScreen? "Full screen" : "Exit full screen"} className="fullscreen-button" id="fullscreen-button">
                                     <svg>
-                                        <use href="#fullscreen" className={isFullScreen ? "hidden" : ""}></use>
-                                        <use href="#fullscreen-exit" className={isFullScreen ? "" : "hidden"}></use>
+                                        <use href="#fullscreen" className={isFullScreen ? "hidden" : ""}/>
+                                        <use href="#fullscreen-exit" className={isFullScreen ? "" : "hidden"}/>
                                     </svg>
                                 </button>
                             </div>
@@ -349,36 +361,36 @@ export const Player = (props) => {
             <svg style={{display: 'none'}}>
                 <defs>
                     <symbol id="pause" viewBox="0 0 24 24">
-                        <path d="M14.016 5.016h3.984v13.969h-3.984v-13.969zM6 18.984v-13.969h3.984v13.969h-3.984z"></path>
+                        <path d="M14.016 5.016h3.984v13.969h-3.984v-13.969zM6 18.984v-13.969h3.984v13.969h-3.984z"/>
                     </symbol>
 
                     <symbol id="play-icon" viewBox="0 0 24 24">
-                        <path d="M8.016 5.016l10.969 6.984-10.969 6.984v-13.969z"></path>
+                        <path d="M8.016 5.016l10.969 6.984-10.969 6.984v-13.969z"/>
                     </symbol>
 
                     <symbol id="volume-high" viewBox="0 0 24 24">
                         <path
-                            d="M14.016 3.234q3.047 0.656 5.016 3.117t1.969 5.648-1.969 5.648-5.016 3.117v-2.063q2.203-0.656 3.586-2.484t1.383-4.219-1.383-4.219-3.586-2.484v-2.063zM16.5 12q0 2.813-2.484 4.031v-8.063q1.031 0.516 1.758 1.688t0.727 2.344zM3 9h3.984l5.016-5.016v16.031l-5.016-5.016h-3.984v-6z"></path>
+    d="M14.016 3.234q3.047 0.656 5.016 3.117t1.969 5.648-1.969 5.648-5.016 3.117v-2.063q2.203-0.656 3.586-2.484t1.383-4.219-1.383-4.219-3.586-2.484v-2.063zM16.5 12q0 2.813-2.484 4.031v-8.063q1.031 0.516 1.758 1.688t0.727 2.344zM3 9h3.984l5.016-5.016v16.031l-5.016-5.016h-3.984v-6z"/>
                     </symbol>
 
                     <symbol id="volume-low" viewBox="0 0 24 24">
                         <path
-                            d="M5.016 9h3.984l5.016-5.016v16.031l-5.016-5.016h-3.984v-6zM18.516 12q0 2.766-2.531 4.031v-8.063q1.031 0.516 1.781 1.711t0.75 2.32z"></path>
+    d="M5.016 9h3.984l5.016-5.016v16.031l-5.016-5.016h-3.984v-6zM18.516 12q0 2.766-2.531 4.031v-8.063q1.031 0.516 1.781 1.711t0.75 2.32z"/>
                     </symbol>
 
                     <symbol id="volume-mute" viewBox="0 0 24 24">
                         <path
-                            d="M12 3.984v4.219l-2.109-2.109zM4.266 3l16.734 16.734-1.266 1.266-2.063-2.063q-1.547 1.313-3.656 1.828v-2.063q1.172-0.328 2.25-1.172l-4.266-4.266v6.75l-5.016-5.016h-3.984v-6h4.734l-4.734-4.734zM18.984 12q0-2.391-1.383-4.219t-3.586-2.484v-2.063q3.047 0.656 5.016 3.117t1.969 5.648q0 2.203-1.031 4.172l-1.5-1.547q0.516-1.266 0.516-2.625zM16.5 12q0 0.422-0.047 0.609l-2.438-2.438v-2.203q1.031 0.516 1.758 1.688t0.727 2.344z"></path>
+    d="M12 3.984v4.219l-2.109-2.109zM4.266 3l16.734 16.734-1.266 1.266-2.063-2.063q-1.547 1.313-3.656 1.828v-2.063q1.172-0.328 2.25-1.172l-4.266-4.266v6.75l-5.016-5.016h-3.984v-6h4.734l-4.734-4.734zM18.984 12q0-2.391-1.383-4.219t-3.586-2.484v-2.063q3.047 0.656 5.016 3.117t1.969 5.648q0 2.203-1.031 4.172l-1.5-1.547q0.516-1.266 0.516-2.625zM16.5 12q0 0.422-0.047 0.609l-2.438-2.438v-2.203q1.031 0.516 1.758 1.688t0.727 2.344z"/>
                     </symbol>
 
                     <symbol id="fullscreen" viewBox="0 0 24 24">
                         <path
-                            d="M14.016 5.016h4.969v4.969h-1.969v-3h-3v-1.969zM17.016 17.016v-3h1.969v4.969h-4.969v-1.969h3zM5.016 9.984v-4.969h4.969v1.969h-3v3h-1.969zM6.984 14.016v3h3v1.969h-4.969v-4.969h1.969z"></path>
+    d="M14.016 5.016h4.969v4.969h-1.969v-3h-3v-1.969zM17.016 17.016v-3h1.969v4.969h-4.969v-1.969h3zM5.016 9.984v-4.969h4.969v1.969h-3v3h-1.969zM6.984 14.016v3h3v1.969h-4.969v-4.969h1.969z"/>
                     </symbol>
 
                     <symbol id="fullscreen-exit" viewBox="0 0 24 24">
                         <path
-                            d="M15.984 8.016h3v1.969h-4.969v-4.969h1.969v3zM14.016 18.984v-4.969h4.969v1.969h-3v3h-1.969zM8.016 8.016v-3h1.969v4.969h-4.969v-1.969h3zM5.016 15.984v-1.969h4.969v4.969h-1.969v-3h-3z"></path>
+    d="M15.984 8.016h3v1.969h-4.969v-4.969h1.969v3zM14.016 18.984v-4.969h4.969v1.969h-3v3h-1.969zM8.016 8.016v-3h1.969v4.969h-4.969v-1.969h3zM5.016 15.984v-1.969h4.969v4.969h-1.969v-3h-3z"/>
                     </symbol>
                 </defs>
             </svg>

@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {Media} from "./Media";
 import {useDispatch} from "react-redux";
-import {getVideos} from "./actions";
+import {getVideos} from "../../store/actions";
 import {Player} from "./Player";
 
 // use index js only for final exports
@@ -18,6 +18,8 @@ export const VideoCanvas = (props) => {
     function getMediaItemsObj(videosObj) {
         setVideos(videosObj);
     }
+
+    console.log("canvas video ")
 
     return (
         <div>
