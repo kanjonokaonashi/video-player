@@ -6,14 +6,12 @@ export const VolumeButton = (props) => {
         currentVolume,
     } = props;
 
-    console.log("is muted -> ", isMuted)
-
     return (
         <button onClick={toggleMute} data-title="Mute" className="volume-button" id="volume-button" key="volumeButton">
             <svg>
-                <use className={isMuted || currentVolume === 0 ? "" : "hidden"} href="#volume-mute"/>
+                <use className={isMuted || currentVolume == 0 ? "" : "hidden"} href="#volume-mute"/>
                 <use className={currentVolume > 0 && currentVolume <= 0.5 && !isMuted ? "" : "hidden"} href="#volume-low"/>
-                <use href="#volume-high" className={currentVolume > 0.5 ? "" : "hidden"}/>
+                <use href="#volume-high" className={currentVolume > 0.5 && !isMuted ? "" : "hidden"}/>
             </svg>
 
             <svg style={{display: 'none'}}>

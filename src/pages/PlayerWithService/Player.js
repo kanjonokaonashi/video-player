@@ -1,6 +1,5 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {VideoControlService} from "./VideoControlService";
-import {Controls2} from "./components/Controls2";
 import {Controls} from "./components/Controls";
 
 
@@ -12,7 +11,7 @@ export const Player = (props) => {
         return new VideoControlService(videoObjectsArr);
     }, [videoObjectsArr]);
 
-    const [currentTime, setCurrentTime] = useState(0);
+    const [currentTime, setCurrentTime] = useState(VideoService._currentTime);
 
     const [isPlaying, setIsPlaying] = useState(false);
 
@@ -23,6 +22,7 @@ export const Player = (props) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
 
     const [areControlsVisible, setAreControlsVisible] = useState(true);
+    const [currentFrame, setCurrentFrame] = useState(0);
 
     const canvasRef = useRef(null);
     const videoContainerRef = useRef(null);
@@ -30,26 +30,59 @@ export const Player = (props) => {
     useEffect(() => {
         const videoContainer = videoContainerRef.current;
         videoContainer.addEventListener('fullscreenchange', () => {setIsFullScreen(!isFullScreen);});
-        requestAnimationFrame(drawOnCanvas);
-        // add the animation frame here
+        VideoService.currentVideo.requestVideoFrameCallback(drawOnCanvas);
     })
 
+    // function startDrawing() {
+    //     var video = document.querySelector('video');
+    //     var canvas = document.querySelector('canvas');
+    //     var ctx = canvas.getContext('2d');
+    //
+    //     var paint_count = 0;
+    //     var start_time = 0.0;
+    //
+    //     var updateCanvas = function(now) {
+    //         if(start_time == 0.0)
+    //             start_time = now;
+    //
+    //         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //
+    //         var elapsed = (now - start_time) / 1000.0;
+    //         var fps = (++paint_count / elapsed).toFixed(3);
+    //         document.querySelector('#fps_text').innerText = 'video fps: ' + fps;
+    //
+    //         video.requestVideoFrameCallback(updateCanvas);
+    //     }
+    //
+    //     video.requestVideoFrameCallback(updateCanvas);
+    //
+    //     video.src = "http://example.com/foo.webm"
+    //     video.play()
+    // }
+
     const drawOnCanvas = () => {
+
+        if(currentTime != VideoService._currentTime) {
+            setCurrentTime(VideoService._currentTime)
+        }
         const canvas = canvasRef.current;
         let width = isFullScreen ? window.innerWidth : 640;
         let height = isFullScreen ? window.innerHeight : 360;
         canvas.setAttribute('width', width);
         canvas.setAttribute('height', height);
+
         let context = canvas.getContext('2d');
         context.drawImage(
-            VideoService.currentVideo,
+            VideoService._currentVideo,
             0,
             0,
             width,
             height
         );
 
-        requestAnimationFrame(drawOnCanvas);
+        // requestAnimationFrame(drawOnCanvas);
+        VideoService.currentVideo.requestVideoFrameCallback(drawOnCanvas);
+
     }
 
     const togglePlay = () => {
@@ -103,7 +136,7 @@ export const Player = (props) => {
             ? event.target.dataset.seek
             : event.target.value;
 
-        VideoControlService._currentTime = skipTo;
+        VideoService._currentTime = skipTo;
     }
 
     const hideControls = () => {
@@ -117,8 +150,8 @@ export const Player = (props) => {
     // pass all appropriate
     return (
         <div className="container">
-            <div ref={videoContainerRef} onMouseLeave={hideControls} onMouseEnter={showControls} className="video-container" id="video-container">
-                <div className="canvas-container">
+            <div ref={videoContainerRef}  onMouseLeave={hideControls} onMouseEnter={showControls} className="video-container" id="video-container">
+                <div onClick={togglePlay} className="canvas-container">
                     <canvas ref={canvasRef} className="canvas" id="canvas"/>
                 </div>
 
@@ -135,6 +168,7 @@ export const Player = (props) => {
                     toggleMute={toggleMute}
                     isMuted={isMuted}
                     areControlsVisible={areControlsVisible}
+                    totalDuration={VideoService._totalDuration}
                 />
             </div>
         </div>

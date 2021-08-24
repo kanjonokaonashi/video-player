@@ -34,7 +34,6 @@ export class VideoControlService {
     // private
     #setTotalDuration = () => {
         this.totalDuration = Math.max(...this.videoObjectsArr.map((obj) => obj.end));
-
     }
 
     // public
@@ -44,6 +43,10 @@ export class VideoControlService {
 
     // private
     #updateCurrentTime = () => {
+        if(this.currentTime >= this.currentVideoObj.end) {
+            this.#setCurrentVideo();
+        }
+
         this.currentTime = this.currentVideo.currentTime + this.currentVideoObj.start;
     }
 
@@ -53,6 +56,9 @@ export class VideoControlService {
         this.currentVideoObj = newVideo;
         this.currentVideo = this.videoElementsObj[newVideo.id];
         this.addCurrentVideoListeners();
+        if(this.isPlaying) {
+            this.playCurrentVideo();
+        }
     }
 
     // public
@@ -62,11 +68,11 @@ export class VideoControlService {
 
     // public
     set _currentTime(newTime) {
-        if(newTime >= this.currentVideoObj.start && newTime < this.currentVideoObj.end) {
-            this.currentVideo.currentTime = newTime - this.currentVideoObj.start;
-        } else {
-            this.currentVideo.pause();
+        this.currentTime = newTime;
+        if(newTime < this.currentVideoObj.start || newTime >= this.currentVideoObj.end) {
             this.#setCurrentVideo(); // may be autostart here too, or in the function
+        } else {
+            this.currentVideo.currentTime = this.currentTime - this.currentVideoObj.start;
         }
     }
 

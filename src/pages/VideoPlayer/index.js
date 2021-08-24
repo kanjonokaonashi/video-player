@@ -19,8 +19,6 @@ export const VideoCanvas = (props) => {
         setVideos(videosObj);
     }
 
-    console.log("canvas video ")
-
     return (
         <div>
             <Media data={props.state.videos.data} type="video" getMediaItemsObj={getMediaItemsObj} />

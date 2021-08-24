@@ -2,19 +2,47 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {Controls} from "./components/Controls";
 
 export const Player = (props) => {
+
     // data from props
     const {
         mediaObjects,
         mediaElements,
     } = props;
 
+    const _FPS = 24;
+    const _FRAMERATE = 0.042;
+
+    const timeToFrame = (time) => { // use callback
+        let frame = Math.ceil(time * _FPS);
+        return frame;
+    }
+
+    const frameToTime = (frame) => {
+        let time = Math.round(frame / _FPS);
+        return time;
+    }
+
     const firstMedia = useMemo(() => {
         return mediaObjects.find(obj => obj.start === 0);
     }, [mediaObjects]);
-    const totalDuration = useMemo(() => Math.max(...mediaObjects.map((obj) => obj.end)), [mediaObjects]);
+
+    // const totalDuration = useMemo(() => Math.max(...mediaObjects.map((obj) => obj.end)), [mediaObjects]);
+    /*const totalFrames = useMemo(() => {
+        let totalDuration = Object.values(mediaElements).reduce((acc, curr) => acc + curr.duration, 0);
+        Object.values(mediaElements).forEach((elem) => console.log(elem.duration))
+        return timeToFrame(totalDuration);
+    }, [mediaObjects]);
+*/
+
+    // TODO will be more accurate with the duration calculation
+    const totalFrames = useMemo(() => {
+        const totalDuration = Math.max(...mediaObjects.map((obj) => obj.end));
+        return timeToFrame(totalDuration);
+    }, [mediaObjects]);
+
 
     // state
-    const [currentTime, setCurrentTime] = useState(0);
+    // const [currentTime, setCurrentTime] = useState(0);
     const [areControlsVisible, setAreControlsVisible] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
     const [volume, setVolume] = useState(1);
@@ -24,53 +52,76 @@ export const Player = (props) => {
     const [isFullScreen, setIsFullScreen] = useState(false); // todo remove
     const [currentFrame, setCurrentFrame] = useState(0);
 
+    const currentFrameInterval = useMemo(() => {
+        return frameTimeInterval(currentFrame);
+    }, [currentFrame])
+
     const canvasRef = useRef(null);
     const videoContainerRef = useRef(null);
-
-    const _FPS = 24;
-    const _FRAMERATE = 0.042;
 
     useEffect(() => {
         const videoContainer = videoContainerRef.current;
         videoContainer.addEventListener('fullscreenchange', () => {setIsFullScreen(!isFullScreen);});
     });
 
-
     useEffect(() => {
-        if(currentTime >= totalDuration) {
+        if(currentFrame >= totalFrames) {
             setCurrentVideo(mediaElements[firstMedia.id]);
             setCurrentVideoObj(firstMedia)
-            setCurrentTime(0);
             togglePlay();
-        } else if(currentTime >= currentVideoObj.end || currentTime < currentVideoObj.start) {
+        } else if((currentFrame >= timeToFrame(currentVideoObj.end)) || currentFrame < timeToFrame(currentVideoObj.start)) {
             currentVideo.pause();
+            let currentTime = frameToTime(currentFrame);
+
             const newMedia = mediaObjects.find(obj => (obj.start <= currentTime) && (obj.end > currentTime));
             let video = mediaElements[newMedia.id];
             setCurrentVideo(video);
             setCurrentVideoObj(newMedia);
         }
-    }, [currentTime]);
+    }, [currentFrame]);
 
     useEffect(() => {
 
-        console.log("currrent video")
-        console.dir(currentVideo)
-        currentVideo.currentTime = currentTime - currentVideoObj.start;
-        // currentVideo.onplaying =  () => requestAnimationFrame(drawOnCanvas);
+        // currentVideo.addEventListener('seeking', function() {
+        //     console.log("seeked")
+        //
+        //     if(isPlaying) {
+        //
+        //     }
+        //     const canvas = canvasRef.current;
+        //     let width = document.fullscreenElement ? window.innerWidth : 640; // not using isFullScreen because of closures
+        //     let height = document.fullscreenElement ? window.innerHeight : 360;
+        //
+        //     canvas.setAttribute('width', width);
+        //     canvas.setAttribute('height', height);
+        //     let context = canvas.getContext('2d');
+        //     context.drawImage(
+        //         currentVideo,
+        //         0,
+        //         0,
+        //         width,
+        //         height
+        //     );
+        // });
         currentVideo.onplaying =  () => currentVideo.requestVideoFrameCallback(drawOnCanvas);
 
-        currentVideo.addEventListener('timeupdate', updateCurrentTime);
+        currentVideo.currentTime = frameToTime(currentFrame) - currentVideoObj.start;
+
         currentVideo.volume = volume;
         currentVideo.muted = isMuted;
-        if(isPlaying && currentTime !== 0) {
+        if(isPlaying) {
+            currentVideo.play();
+        } else {
+            console.log("paused")
+            currentVideo.muted = true;
             currentVideo.play();
         }
+        // console.dir(currentVideo)
         return (() => {
-            currentVideo.removeEventListener('playing', () => requestAnimationFrame(drawOnCanvas));
-            currentVideo.removeEventListener('timeupdate', updateCurrentTime)
-
+            currentVideo.removeEventListener('playing', () => currentVideo.requestVideoFrameCallback(drawOnCanvas));
         });
     }, [currentVideo]);
+
 
     // TODO, used both here and in the child time component, maybe removed fromm there
     function formatTime(timeInSeconds) {
@@ -112,22 +163,45 @@ export const Player = (props) => {
             : event.target.value;
 
 
-        if(skipTo >= currentVideoObj.start && skipTo < currentVideoObj.end) {
-            currentVideo.currentTime = skipTo - currentVideoObj.start;
-        }
-        setCurrentTime(skipTo);
+        console.log("skipTo is ", skipTo);
+        //
+        // let currentFrameInterval = frameTimeInterval(skipTo);
+        //
+        // console.log("currentFrameInterval is ", currentFrameInterval)
+        //
+        //
+        // if(skipTo >= timeToFrame(currentVideoObj.start) && skipTo < timeToFrame(currentVideoObj.end)) {
+        //     // console.log("video was skipped ", frameToTime(skipTo) - currentVideoObj.start)
+        //     currentVideo.currentTime = currentFrameInterval.start - currentVideoObj.start;
+        //
+        //     // console.log("currentVideo.currentTime from skip to  -> ", currentVideo.currentTime);
+        //     // console.log(" skip to  -> ", skipTo);
+        // }
+
+        if(skipTo >= timeToFrame(currentVideoObj.start) && skipTo < timeToFrame(currentVideoObj.end)) {
+                // console.log("video was skipped ", frameToTime(skipTo) - currentVideoObj.start)
+                currentVideo.currentTime = currentFrameInterval.start - currentVideoObj.start;
+
+                // console.log("currentVideo.currentTime from skip to  -> ", currentVideo.currentTime);
+                // console.log(" skip to  -> ", skipTo);
+            }
+
+        setCurrentFrame(skipTo);
+        // currentVideo.play();
     }
 
-    const updateCurrentTime = () => {
-        const newTime = currentVideo.currentTime + currentVideoObj.start;
-        const newFrame = timeToFrame(newTime)
+    function frameTimeInterval(currentFrame) {
+        let start = (currentFrame * _FRAMERATE);
+        let end = (start + _FRAMERATE);
+        console.log("frameTimeInterval")
 
-        if(newFrame !== currentFrame) {
-            console.log("(currentVideo.currentTime + currentVideoObj.start - currentTime) >= _FRAMERATE)")
-            setCurrentFrame(newFrame);
+        return {
+            start:  start.toFixed(3),
+            end: end.toFixed(3),
         }
-        setCurrentTime(newTime);
+
     }
+
 
     const toggleMute = () => {
         if(isMuted) {
@@ -196,15 +270,30 @@ export const Player = (props) => {
         setAreControlsVisible(true);
     }
 
-    const drawOnCanvas = () => {
+    const drawOnCanvas = (now, metadata) => {
 
-        if (currentVideo.paused) {
+        if(currentVideo.paused) {
             return;
+        }
+
+        if(!isPlaying && currentFrameInterval) {
+            if(metadata.mediaTime >= currentFrameInterval.end) {
+                console.log("isPlaying -> ", currentFrameInterval.isPlaying, " currentFrameInterval -> ", currentFrameInterval);
+
+                currentVideo.pause();
+                currentVideo.muted = isMuted;
+                return;
+            }
         }
 
         const canvas = canvasRef.current;
         let width = document.fullscreenElement ? window.innerWidth : 640; // not using isFullScreen because of closures
         let height = document.fullscreenElement ? window.innerHeight : 360;
+
+        // let frameOffset = -7 // must be determined from seeing what const frames = Math.round(metadata.mediaTime  * fps) equals to at time = 0.
+        let currFrame = Math.ceil(timeToFrame(metadata.mediaTime) + timeToFrame(currentVideoObj.start)) - 2 ;
+        // console.log("currFrame is ", timeToFrame(currentVideoObj.start));
+        // console.log("timeToFrame(metadata.mediaTime) ", timeToFrame(metadata.mediaTime))
 
         canvas.setAttribute('width', width);
         canvas.setAttribute('height', height);
@@ -217,21 +306,20 @@ export const Player = (props) => {
             height
         );
 
-        requestAnimationFrame(drawOnCanvas);
+        setCurrentFrame(currFrame);
+
+        currentVideo.requestVideoFrameCallback(drawOnCanvas);
     }
 
-    const timeToFrame = (time) => {
-        let frame = Math.floor(time * _FPS);
-        return frame;
+    // todo if ready then draw the one and only frame
+    // for every frame call the draw only once, but in
+    // case of a frame change, repeat, so this should be a loop
+    const requestRender = () => {
+        if(currentVideo.readyState >= 2) {
+            drawOnCanvas()
+        }
+        requestRender();
     }
-
-    const frameToTime = (frame) => {
-        let time = Math.round(frame * _FRAMERATE);
-        return time;
-    }
-
-    // console.log("CurrentFrame", currentFrame);
-    // console.log("CurrentTime", currentTime);
 
     return (
         <div className="container">
@@ -246,13 +334,14 @@ export const Player = (props) => {
                     skipAhead={skipAhead}
                     updateVolume={updateVolume}
                     currentVolume={volume}
-                    currentTime={currentTime}
+                    // currentTime={currentTime}
                     toggleFullScreen={toggleFullScreen}
                     isFullScreen={isFullScreen}
                     toggleMute={toggleMute}
                     isMuted={isMuted}
                     areControlsVisible={areControlsVisible}
-                    totalDuration={totalDuration}
+                    currentFrame={currentFrame}
+                    totalFrames={totalFrames}
                 />
             </div>
         </div>

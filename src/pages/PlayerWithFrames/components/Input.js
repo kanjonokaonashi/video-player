@@ -9,12 +9,10 @@ export const Input = (props) => {
         step
     } = props;
 
-
     return (
         <input
             onInput={onInput}
-            // value={value}
-            defaultValue={value}
+            value={value}
             className={className}
             id={id}
             min="0"

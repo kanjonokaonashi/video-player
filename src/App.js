@@ -6,8 +6,9 @@ import {
     Route,
 } from "react-router-dom";
 import {VideoCanvas} from "./pages/VideoPlayer";
-import {VideoPlayer} from "./pages/Player /index";
-import Navigation from "./pages/Player /components/Navigation";
+import {VideoPlayer} from "./pages/PlayerWithService/index";
+import {VideoPlayerWithFrames} from "./pages/PlayerWithFrames/index";
+import Navigation from "./pages/Navigation";
 
 const App = () => {
 
@@ -22,6 +23,7 @@ const App = () => {
                     <Route exact path="/" render={() => <div>Homepage</div>} />
                     <Route exact path="/video_player" render={() => <VideoCanvas state={state}/>}/>
                     <Route exact path="/player" render={() => <VideoPlayer state={state}/>}/>
+                    <Route exact path="/player_with_frames" render={() => <VideoPlayerWithFrames state={state}/>}/>
                 </Switch>
             </div>
         </Router>

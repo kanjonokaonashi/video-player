@@ -23,6 +23,11 @@ const Navigation = () => {
                         Video PLayer with service
                     </li>
                 </Link>
+                <Link to="/player_with_frames" >
+                    <li>
+                        Video PLayer with Frames
+                    </li>
+                </Link>
             </ul>
         </nav>
     )
