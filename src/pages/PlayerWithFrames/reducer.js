@@ -18,25 +18,32 @@ const initialState = {
             end: 15.023311,
         },
         {
+            name: "Cars",
+            source: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+            id: 9465,
+            start: 15.023311,
+            end: 609.59347,
+        },
+        {
             name: "Monster",
             source: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
             id: 9538,
-            start: 15.023311,
-            end: 30.069842,
+            start: 609.59347,
+            end: 624.640001,
         },
-        {
+        /*{
             name: "Cars",
             source: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
             id: 2799,
             start: 30.069842,
             end: 45.116373,
-        },
+        },*/
         {
             name: "BatMan",
             source: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
             id: 7326,
-            start: 45.116373,
-            end: 60.162904,
+            start: 624.640001,
+            end: 639.686532,
         }
     ],
 }
