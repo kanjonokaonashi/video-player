@@ -60,23 +60,37 @@ img {
   height: 50px;
   margin: 20px auto;
   position: relative;
-  display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
   background-color: white;
 }
 
 .playback-progress {
-  width: 0px;
+  width: 0;
   height: 120%;
   bottom: 0;
   left: 0;
-  border-left: 2px solid #601e1e;
+  border-left: 1px solid darkred;
   position: absolute;
 }
 
 .playback-video-divs {
+  height: 100%;
+  width: 640px;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+}
 
+.video-duration-div {
+  height: 100%;
+  border-right: 1px solid black;
+}
+
+.video-div-end {
+  width: 0;
+  height: 100%;
+  bottom: 0;
+  border-left: 1px solid black;
+  position: absolute;
 }
 
 .canvas-container {

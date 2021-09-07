@@ -6,7 +6,8 @@ export const Input = (props) => {
         className,
         id,
         max,
-        step
+        step,
+        onMouseMove
     } = props;
 
     return (
@@ -19,6 +20,7 @@ export const Input = (props) => {
             max={max}
             type="range"
             step={step}
+            onMouseMove={onMouseMove}
         />
     )
 }

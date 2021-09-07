@@ -10,7 +10,6 @@ export const Player = (props) => {
     } = props;
 
     const _FPS = 24;
-    const _FRAMERATE = 0.042;
 
     const timeToFrame = (time) => { // use callback
         let frame = Math.round(time * _FPS);
@@ -27,8 +26,7 @@ export const Player = (props) => {
     }, [mediaObjects]);
 
     const totalFrames = useMemo(() => {
-        const totalDuration = Math.max(...mediaObjects.map((obj) => obj.end));
-        return timeToFrame(totalDuration);
+        return Math.max(...mediaObjects.map((obj) => obj.end));
     }, [mediaObjects]);
 
     // state
@@ -52,13 +50,16 @@ export const Player = (props) => {
     useEffect(() => {
         if(currentFrame >= totalFrames) {
             setCurrentVideo(mediaElements[firstMedia.id]);
-            setCurrentVideoObj(firstMedia)
-            togglePlay();
-        } else if((currentFrame >= timeToFrame(currentVideoObj.end)) || currentFrame < timeToFrame(currentVideoObj.start)) {
-            currentVideo.pause();
-            let currentTime = frameToTime(currentFrame);
+            setCurrentVideoObj(firstMedia);
+            setCurrentFrame(0);
+            // togglePlay();
 
-            const newMedia = mediaObjects.find(obj => (obj.start <= currentTime) && (obj.end > currentTime));
+            setIsPlaying(false);
+            // togglePlay().then(r => r);
+        } else if(currentFrame >= currentVideoObj.end || currentFrame < currentVideoObj.start) {
+            pauseVideo().then(r => r);
+            console.log("new video")
+            const newMedia = mediaObjects.find(obj => (obj.start <= currentFrame + 1) && (obj.end > currentFrame));
             let video = mediaElements[newMedia.id];
             setCurrentVideo(video);
             setCurrentVideoObj(newMedia);
@@ -66,31 +67,69 @@ export const Player = (props) => {
     }, [currentFrame]);
 
     useEffect(() => {
-        currentVideo.currentTime = frameToTime(currentFrame) - currentVideoObj.start;
+        // console.dir(currentVideo)
+        currentVideo.currentTime = frameToTime(currentFrame - currentVideoObj.start + 1);
 
         currentVideo.volume = volume;
         currentVideo.muted = isMuted;
 
         currentVideo.onplaying = () => currentVideo.requestVideoFrameCallback(drawOnCanvas);
+
+
         if(isPlaying) {
-            currentVideo.play();
-        } else {
-            currentVideo.addEventListener('loadeddata', requestRender);
+            let playPromise = currentVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.then(v => v)
+                    .catch(error => {
+                        console.log(error)
+                        currentVideo.requestVideoFrameCallback(drawOnCanvas)
+                    });
+            }
+        } else if(currentVideo.paused) {
+            currentVideo.requestVideoFrameCallback(drawOnCanvas);
         }
         return (() => {
             currentVideo.removeEventListener('playing', () => currentVideo.requestVideoFrameCallback(drawOnCanvas));
+            currentVideo.removeEventListener('loadeddata', requestRender);
         });
     }, [currentVideo]);
+
+    async function playVideo() {
+        try {
+            await currentVideo.play();
+        } catch(err) {
+            console.log("an error occurred, ", err)
+        }
+    }
+
+    async function pauseVideo() {
+        try {
+            await currentVideo.pause();
+        } catch(err) {
+            console.log("an error occurred, ", err)
+        }
+    }
 
     const drawOnCanvas = (now, metadata) => {
 
         const canvas = canvasRef.current;
         let width = document.fullscreenElement ? window.innerWidth : 640; // not using isFullScreen because of closures
         let height = document.fullscreenElement ? window.innerHeight : 360;
+
+        // let frameOffset = -2 // must be determined from seeing what const frames = Math.round(metadata.mediaTime  * fps) equals to at time = 0.
+        let currFrame = timeToFrame(metadata.mediaTime) + currentVideoObj.start + 1; // TODO it was +1 before
+
+        // if(currentVideoObj.start !== 0) {
+        //     currFrame -= 1;
+        // }
+
+        console.log("metadata.mediaTime)", metadata.mediaTime)
+
+        // console.log("current frame", currFrame)
+
         canvas.setAttribute('width', width);
         canvas.setAttribute('height', height);
         let context = canvas.getContext('2d');
-
         context.drawImage(
             currentVideo,
             0,
@@ -99,27 +138,7 @@ export const Player = (props) => {
             height
         );
 
-        if(!currentVideo.paused) {
-            // console.log("from draw canvas currentVideo.requestVideoFrameCallback(drawOnCanvas),");
-            // console.dir(currentVideo)
-            let currFrame = Math.ceil(timeToFrame(metadata.mediaTime) + timeToFrame(currentVideoObj.start)) + 1 ;
-            // console.log("currFrame is ", timeToFrame(currentVideoObj.start));
-            // console.log("timeToFrame(metadata.mediaTime) ", timeToFrame(metadata.mediaTime))
-            context.drawImage(
-                currentVideo,
-                0,
-                0,
-                width,
-                height
-            );
-            setCurrentFrame(currFrame)
-        }
-
-        console.log("in the draw canvas , currentVideo.currentTime -> ", currentVideo.currentTime, ", currentVideo.readyState -> ", currentVideo.readyState);
-
-
-        // let frameOffset = -2 // must be determined from seeing what const frames = Math.round(metadata.mediaTime  * fps) equals to at time = 0.
-
+        setCurrentFrame(currFrame);
 
         currentVideo.requestVideoFrameCallback(drawOnCanvas);
     }
@@ -128,58 +147,35 @@ export const Player = (props) => {
     // for every frame call the draw only once, but in
     // case of a frame change, repeat, so this should be a loop
     const requestRender = () => {
+
         if(currentVideo.readyState >= 2) {
-            // console.log(currentVideo.requestVideoFrameCallback(drawOnCanvas));
-            // currentVideo.requestVideoFrameCallback(drawOnCanvas);
-            drawOnCanvas()
-            // drawOnCanvas()
+            currentVideo.requestVideoFrameCallback(drawOnCanvas);
         } else {
             requestRender();
         }
     }
 
     function skipAhead(event) {
-        const skipTo = event.target.dataset.seek
-            ? event.target.dataset.seek
-            : event.target.value;
+        const skipTo = event.nativeEvent.target.dataset.seek
+            ? event.nativeEvent.target.dataset.seek
+            : event.nativeEvent.target.value;
 
 
-        console.log("skipTo is ", skipTo);
-        //
-        // let currentFrameInterval = frameTimeInterval(skipTo);
-        //
-        // console.log("currentFrameInterval is ", currentFrameInterval)
-        //
-        //
-        // if(skipTo >= timeToFrame(currentVideoObj.start) && skipTo < timeToFrame(currentVideoObj.end)) {
-        //     // console.log("video was skipped ", frameToTime(skipTo) - currentVideoObj.start)
-        //     currentVideo.currentTime = currentFrameInterval.start - currentVideoObj.start;
-        //
-        //     // console.log("currentVideo.currentTime from skip to  -> ", currentVideo.currentTime);
-        //     // console.log(" skip to  -> ", skipTo);
-        // }
-
-        if(skipTo >= timeToFrame(currentVideoObj.start) && skipTo < timeToFrame(currentVideoObj.end)) {
-            // console.log("video was skipped ", frameToTime(skipTo) - currentVideoObj.start)
-            currentVideo.currentTime = skipTo - currentVideoObj.start;
-
-            // console.log("currentVideo.currentTime from skip to  -> ", currentVideo.currentTime);
-            // console.log(" skip to  -> ", skipTo);
+        if(skipTo >= currentVideoObj.start && skipTo < currentVideoObj.end) {
+            currentVideo.currentTime = frameToTime(skipTo - currentVideoObj.start);
         }
 
+        console.log('skipTo', skipTo)
+
         setCurrentFrame(skipTo);
-        // do{
-        //     requestRender();
-        // } while(currentVideo.readyState < 2)
-        // currentVideo.play();
     }
 
     // todo check this, some issues
-    const togglePlay = () => {
-        if(isPlaying) {
-            currentVideo.pause();
+    const togglePlay = async () => {
+        if (isPlaying) {
+            await pauseVideo().then(r => r);
         } else {
-            currentVideo.play();
+            await playVideo().then(r => r);
         }
         setIsPlaying(!isPlaying);
     }
@@ -252,12 +248,22 @@ export const Player = (props) => {
 
     //TODO may be eliminated from here, since it is in the child component
     function updateTimeElapsed() {
-        const newTime = Math.round(currentVideo.currentTime + currentVideoObj.start);
-        const time = formatTime(newTime);
-        return `${time.minutes}:${time.seconds}`;
-        // timeElapsed.setAttribute('datetime', `${time.minutes}m ${time.seconds}s`);
-        // console.log("updateTimeElapsed -> ", currentVideo.currentTime + currentVideoObj.start)
+        let hours = Math.floor(currentFrame / (60 * 60 * _FPS));
+        let minutes = (Math.floor(currentFrame / (60 * _FPS))) % 60;
+        let seconds = (Math.floor(currentFrame / _FPS)) % 60;
+        let frames = currentFrame % _FPS;
+
+        return {
+            hours,
+            minutes,
+            seconds,
+            frames
+        }
     }
+
+    console.log(currentFrame)
+    console.log("current video current time", currentVideo.currentTime)
+    // console.log(updateTimeElapsed());
 
     return (
         <div className="container">
@@ -279,13 +285,30 @@ export const Player = (props) => {
                     areControlsVisible={areControlsVisible}
                     currentFrame={currentFrame}
                     totalFrames={totalFrames}
+                    currentTime={updateTimeElapsed()}
                 />
             </div>
             <div className="playback-container">
                 <div className="playback-video-divs">
-
+                    {
+                        mediaObjects.map(obj => {
+                            let divWidth = ((obj.end - obj.start + 1) / (totalFrames + 1));
+                            return <div className="video-duration-div" style={{width: (divWidth * 100) + "%"}} key={obj.id}/>;
+                        })
+                    }
                 </div>
-                <div className="playback-progress"></div>
+                <div className="playback-progress" style={{left: ((currentFrame + 1) / (totalFrames + 1)) * 100 + '%' }}/>
+            </div>
+
+            <div className="canvas-playback-container">
+                <div className="playback-video-divs">
+                    {
+                        mediaObjects.map(obj => {
+                            let canvasWidth = ((obj.end - obj.start + 1) / (totalFrames + 1));
+                            return <canvas className="video-duration-div" style={{width: (canvasWidth * 100) + "%"}} key={obj.id}/>;
+                        })
+                    }
+                </div>
             </div>
         </div>
     )
